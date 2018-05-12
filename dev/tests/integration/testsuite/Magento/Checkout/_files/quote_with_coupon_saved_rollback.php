@@ -2,7 +2,7 @@
 /**
  * Rollback for quote_with_coupon_saved.php fixture.
  *
- * Copyright © Magento, Inc. All rights reserved.
+ * Copyright © 2013-2017 Magento, Inc. All rights reserved.
  * See COPYING.txt for license details.
  */
 
