@@ -39,7 +39,9 @@ class QueueManagement
     const XML_PATH_NEW_MESSAGES_LIFETIME = 'system/mysqlmq/new_messages_lifetime';
     /**#@-*/
 
-    /**#@-*/
+    /**
+     * @var \Magento\MysqlMq\Model\ResourceModel\Queue
+    */
     private $messageResource;
 
     /**
@@ -315,5 +317,12 @@ class QueueManagement
     public function changeStatus($messageRelationIds, $status)
     {
         $this->messageResource->changeStatus($messageRelationIds, $status);
+    }
+
+    public function hasMessages(string $queue): bool
+    {
+        $messages = $this->messageResource->getMessages($queue, 1);
+
+        return count($messages) > 0;
     }
 }

@@ -187,4 +187,12 @@ class Queue implements QueueInterface
         );
         $this->amqpConfig->getChannel()->basic_publish($msg, '', $this->queueName);
     }
+
+    public function hasMessages(): bool
+    {
+        // TODO: I don't know if this is correct or not?
+        $channel = $this->amqpConfig->getChannel();
+
+        return $channel->hasPendingMethods();
+    }
 }

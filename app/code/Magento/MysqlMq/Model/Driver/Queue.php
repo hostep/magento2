@@ -151,4 +151,9 @@ class Queue implements QueueInterface
             [$this->queueName]
         );
     }
+
+    public function hasMessages(): bool
+    {
+        return $this->queueManagement->hasMessages($this->queueName);
+    }
 }

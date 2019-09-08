@@ -6,7 +6,7 @@
 namespace Magento\Framework\MessageQueue;
 
 /**
- * Factory class for @see \Magento\Framework\MessageQueue\Queuenterface
+ * Factory class for @see \Magento\Framework\MessageQueue\QueueInterface
  *
  * @api
  * @since 100.2.0

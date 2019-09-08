@@ -53,4 +53,6 @@ interface QueueInterface
      * @since 100.1.0
      */
     public function push(EnvelopeInterface $envelope);
+
+    public function hasMessages(): bool;
 }

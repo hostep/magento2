@@ -8,6 +8,7 @@ namespace Magento\MessageQueue\Model\Cron;
 use Magento\Framework\App\ObjectManager;
 use Magento\Framework\MessageQueue\ConnectionTypeResolver;
 use Magento\Framework\MessageQueue\Consumer\Config\ConsumerConfigItemInterface;
+use Magento\Framework\MessageQueue\QueueFactoryInterface;
 use Magento\Framework\ShellInterface;
 use Magento\Framework\MessageQueue\Consumer\ConfigInterface as ConsumerConfigInterface;
 use Magento\Framework\App\DeploymentConfig;
@@ -66,6 +67,11 @@ class ConsumersRunner
     private $lockManager;
 
     /**
+     * @var QueueFactoryInterface
+     */
+    private $queueFactory;
+
+    /**
      * @param PhpExecutableFinder $phpExecutableFinder The executable finder specifically designed
      *        for the PHP executable
      * @param ConsumerConfigInterface $consumerConfig The consumer config provider
@@ -74,6 +80,7 @@ class ConsumersRunner
      * @param LockManagerInterface $lockManager The lock manager
      * @param ConnectionTypeResolver $mqConnectionTypeResolver Consumer connection resolver
      * @param LoggerInterface $logger Logger
+     * @param QueueFactoryInterface $queueFactory QueueFactory
      */
     public function __construct(
         PhpExecutableFinder $phpExecutableFinder,
@@ -82,7 +89,8 @@ class ConsumersRunner
         ShellInterface $shellBackground,
         LockManagerInterface $lockManager,
         ConnectionTypeResolver $mqConnectionTypeResolver = null,
-        LoggerInterface $logger = null
+        LoggerInterface $logger = null,
+        QueueFactoryInterface $queueFactory = null
     ) {
         $this->phpExecutableFinder = $phpExecutableFinder;
         $this->consumerConfig = $consumerConfig;
@@ -93,6 +101,8 @@ class ConsumersRunner
             ?: ObjectManager::getInstance()->get(ConnectionTypeResolver::class);
         $this->logger = $logger
             ?: ObjectManager::getInstance()->get(LoggerInterface::class);
+        $this->queueFactory = $queueFactory
+            ?: ObjectManager::getInstance()->get(QueueFactoryInterface::class); // QueueFactory or QueueRepository? Does it matter?
     }
 
     /**
@@ -114,6 +124,9 @@ class ConsumersRunner
             if (!$this->canBeRun($consumer, $allowedConsumers)) {
                 continue;
             }
+
+            // Just as demonstration, so we see that a consumer gets spawned
+            echo sprintf("\nSpawning consumer process '%s'\n", $consumer->getName());
 
             $arguments = [
                 $consumer->getName(),
@@ -164,6 +177,20 @@ class ConsumersRunner
                 )
             );
             return false;
+        }
+
+        $onlySpawnWhenMessageAvailable = true; // TODO: get this from some configuration somewhere
+        if ($onlySpawnWhenMessageAvailable) {
+            $queueName = $consumerConfig->getQueue();
+            $queue = $this->queueFactory->create($queueName, $connectionName);
+
+            if (!$queue->hasMessages()) {
+
+                // Just as demonstration, so we see what happens
+                echo sprintf("\nNo messages found in queue for consumer '%s'\n", $consumerName);
+
+                return false;
+            }
         }
 
         return true;
