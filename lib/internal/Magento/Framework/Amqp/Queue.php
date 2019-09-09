@@ -190,9 +190,9 @@ class Queue implements QueueInterface
 
     public function hasMessages(): bool
     {
-        // TODO: I don't know if this is correct or not?
         $channel = $this->amqpConfig->getChannel();
+        $message = $channel->basic_get($this->queueName);
 
-        return $channel->hasPendingMethods();
+        return $message !== null;
     }
 }
