@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Magento\Newsletter\Model;
 
 use Magento\Customer\Api\CustomerRepositoryInterface;
+use Magento\Framework\Mail\EmailMessage;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use Magento\TestFramework\Mail\Template\TransportBuilderMock;
@@ -55,10 +56,11 @@ class SubscriberTest extends TestCase
         $subscriber = $this->subscriberFactory->create();
         $subscriber->subscribe('customer_confirm@example.com');
         // confirmationCode 'ysayquyajua23iq29gxwu2eax2qb6gvy' is taken from fixture
-        $this->assertContains(
+        $this->assertEmailContains(
             '/newsletter/subscriber/confirm/id/' . $subscriber->getSubscriberId()
             . '/code/ysayquyajua23iq29gxwu2eax2qb6gvy',
-            $this->transportBuilder->getSentMessage()->getBody()->getParts()[0]->getRawContent()
+            '//p/a/@href',
+            $this->transportBuilder->getSentMessage()
         );
         $this->assertEquals(Subscriber::STATUS_NOT_ACTIVE, $subscriber->getSubscriberStatus());
     }
@@ -87,17 +89,19 @@ class SubscriberTest extends TestCase
         $subscriber = $this->subscriberFactory->create();
         $this->assertSame($subscriber, $subscriber->loadByCustomerId(1));
         $this->assertEquals($subscriber, $subscriber->unsubscribe());
-        $this->assertContains(
+        $this->assertEmailContains(
             'You have been unsubscribed from the newsletter.',
-            $this->transportBuilder->getSentMessage()->getRawMessage()
+            '//td[@class="main-content"]',
+            $this->transportBuilder->getSentMessage()
         );
         $this->assertEquals(Subscriber::STATUS_UNSUBSCRIBED, $subscriber->getSubscriberStatus());
         // Subscribe and verify
         $this->assertEquals(Subscriber::STATUS_SUBSCRIBED, $subscriber->subscribe('customer@example.com'));
         $this->assertEquals(Subscriber::STATUS_SUBSCRIBED, $subscriber->getSubscriberStatus());
-        $this->assertContains(
+        $this->assertEmailContains(
             'You have been successfully subscribed to our newsletter.',
-            $this->transportBuilder->getSentMessage()->getRawMessage()
+            '//td[@class="main-content"]',
+            $this->transportBuilder->getSentMessage()
         );
     }
 
@@ -114,16 +118,18 @@ class SubscriberTest extends TestCase
         // Unsubscribe and verify
         $this->assertSame($subscriber, $subscriber->unsubscribeCustomerById(1));
         $this->assertEquals(Subscriber::STATUS_UNSUBSCRIBED, $subscriber->getSubscriberStatus());
-        $this->assertContains(
+        $this->assertEmailContains(
             'You have been unsubscribed from the newsletter.',
-            $this->transportBuilder->getSentMessage()->getRawMessage()
+            '//td[@class="main-content"]',
+            $this->transportBuilder->getSentMessage()
         );
         // Subscribe and verify
         $this->assertSame($subscriber, $subscriber->subscribeCustomerById(1));
         $this->assertEquals(Subscriber::STATUS_SUBSCRIBED, $subscriber->getSubscriberStatus());
-        $this->assertContains(
+        $this->assertEmailContains(
             'You have been successfully subscribed to our newsletter.',
-            $this->transportBuilder->getSentMessage()->getRawMessage()
+            '//td[@class="main-content"]',
+            $this->transportBuilder->getSentMessage()
         );
     }
 
@@ -141,9 +147,10 @@ class SubscriberTest extends TestCase
         $subscriber->subscribe($customerEmail);
         $subscriber->loadByEmail($customerEmail);
         $subscriber->confirm($subscriber->getSubscriberConfirmCode());
-        $this->assertContains(
+        $this->assertEmailContains(
             'You have been successfully subscribed to our newsletter.',
-            $this->transportBuilder->getSentMessage()->getRawMessage()
+            '//td[@class="main-content"]',
+            $this->transportBuilder->getSentMessage()
         );
     }
 
@@ -173,5 +180,38 @@ class SubscriberTest extends TestCase
         $subscriber = $this->subscriberFactory->create();
         $subscriber->subscribeCustomerById($customer->getId());
         $this->assertEquals(Subscriber::STATUS_UNCONFIRMED, $subscriber->getStatus());
+    }
+
+    /**
+     * Verifies if certain content is contained in the provided xpath in the email template
+     * The xpath provided can only match a single node!
+     *
+     * @param string $expectedGreeting
+     * @param string $xpath
+     * @param EmailMessage $message
+     */
+    private function assertEmailContains(string $expected, string $xpath, EmailMessage $message)
+    {
+        $messageContent = $this->getMessageRawContent($message);
+        $emailDom = new \DOMDocument();
+        $emailDom->loadHTML($messageContent);
+
+        $emailXpath = new \DOMXPath($emailDom);
+        $emailDomNodes = $emailXpath->query($xpath);
+
+        $this->assertSame(1, $emailDomNodes->length);
+        $this->assertContains($expected, $emailDomNodes->item(0)->textContent);
+    }
+
+    /**
+     * Returns raw content of provided message
+     *
+     * @param EmailMessage $message
+     * @return string
+     */
+    private function getMessageRawContent(EmailMessage $message): string
+    {
+        $emailParts = $message->getBody()->getParts();
+        return current($emailParts)->getRawContent();
     }
 }

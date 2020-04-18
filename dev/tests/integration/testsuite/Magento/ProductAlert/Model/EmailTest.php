@@ -8,6 +8,7 @@ namespace Magento\ProductAlert\Model;
 
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Customer\Api\CustomerRepositoryInterface;
+use Magento\Framework\Mail\EmailMessage;
 use Magento\ProductAlert\Model\Email;
 use Magento\Store\Model\Website;
 use Magento\TestFramework\Mail\Template\TransportBuilderMock;
@@ -100,9 +101,10 @@ class EmailTest extends \PHPUnit\Framework\TestCase
         $this->_emailModel->addPriceProduct($product);
         $this->_emailModel->send();
 
-        $this->assertContains(
-            'Smith,',
-            $this->transportBuilder->getSentMessage()->getRawMessage()
+        $this->assertEmailContains(
+            'John Smith,',
+            '//p[@class="greeting"]',
+            $this->transportBuilder->getSentMessage()
         );
     }
 
@@ -146,14 +148,49 @@ class EmailTest extends \PHPUnit\Framework\TestCase
             $this->_emailModel->setType('stock');
             $this->_emailModel->send();
 
-            $expectedPriceBox = '<span id="product-price-' . $product->getId() . '" data-price-amount="'
-                . $expectedPrice . '" data-price-type="finalPrice" '
-                . 'class="price-wrapper "><span class="price">$' . $expectedPrice . '.00</span></span>';
-
-            $this->assertContains(
-                $expectedPriceBox,
-                $this->transportBuilder->getSentMessage()->getBody()->getParts()[0]->getRawContent()
+            $this->assertEmailContains(
+                $expectedPrice,
+                '//span[@id="product-price-' . $product->getId() . '"]/@data-price-amount',
+                $this->transportBuilder->getSentMessage()
+            );
+            $this->assertEmailContains(
+                '$' . $expectedPrice . '.00',
+                '//span[@id="product-price-' . $product->getId() . '"]/span[@class="price"]',
+                $this->transportBuilder->getSentMessage()
             );
         }
+    }
+
+    /**
+     * Verifies if certain content is contained in the provided xpath in the email template
+     * The xpath provided can only match a single node!
+     *
+     * @param string $expectedGreeting
+     * @param string $xpath
+     * @param EmailMessage $message
+     */
+    private function assertEmailContains(string $expected, string $xpath, EmailMessage $message)
+    {
+        $messageContent = $this->getMessageRawContent($message);
+        $emailDom = new \DOMDocument();
+        $emailDom->loadHTML($messageContent);
+
+        $emailXpath = new \DOMXPath($emailDom);
+        $emailDomNodes = $emailXpath->query($xpath);
+
+        $this->assertSame(1, $emailDomNodes->length);
+        $this->assertContains($expected, $emailDomNodes->item(0)->textContent);
+    }
+
+    /**
+     * Returns raw content of provided message
+     *
+     * @param EmailMessage $message
+     * @return string
+     */
+    private function getMessageRawContent(EmailMessage $message): string
+    {
+        $emailParts = $message->getBody()->getParts();
+        return current($emailParts)->getRawContent();
     }
 }

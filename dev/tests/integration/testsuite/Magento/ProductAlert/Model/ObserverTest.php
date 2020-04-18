@@ -11,6 +11,7 @@ use Magento\Customer\Api\AccountManagementInterface;
 use Magento\Customer\Model\Session;
 use Magento\Framework\App\Area;
 use Magento\Framework\Locale\Resolver;
+use Magento\Framework\Mail\EmailMessage;
 use Magento\Framework\Module\Dir\Reader;
 use Magento\Framework\Phrase;
 use Magento\Framework\Phrase\Renderer\Translate as PhraseRendererTranslate;
@@ -69,9 +70,10 @@ class ObserverTest extends \PHPUnit\Framework\TestCase
     public function testProcess()
     {
         $this->observer->process();
-        $this->assertContains(
-            'ohn Smith,',
-            $this->transportBuilder->getSentMessage()->getRawMessage()
+        $this->assertEmailContains(
+            'John Smith,',
+            '//p[@class="greeting"]',
+            $this->transportBuilder->getSentMessage()
         );
     }
 
@@ -120,7 +122,48 @@ class ObserverTest extends \PHPUnit\Framework\TestCase
         $message = $this->transportBuilder->getSentMessage();
         $messageContent = $message->getBody()->getParts()[0]->getRawContent();
         $expectedText = array_shift($translation);
-        $this->assertContains('/frontend/Magento/luma/pt_BR/', $messageContent);
-        $this->assertContains(substr($expectedText, 0, 50), $messageContent);
+        $this->assertEmailContains(
+            '/frontend/Magento/luma/pt_BR/',
+            '//span[@class="product-image-wrapper"]/img/@src',
+            $this->transportBuilder->getSentMessage()
+        );
+        $this->assertEmailContains(
+            $expectedText,
+            '//p[@class="greeting"]/following-sibling::p[1]',
+            $this->transportBuilder->getSentMessage()
+        );
+    }
+
+    /**
+     * Verifies if certain content is contained in the provided xpath in the email template
+     * The xpath provided can only match a single node!
+     *
+     * @param string $expectedGreeting
+     * @param string $xpath
+     * @param EmailMessage $message
+     */
+    private function assertEmailContains(string $expected, string $xpath, EmailMessage $message)
+    {
+        $messageContent = $this->getMessageRawContent($message);
+        $emailDom = new \DOMDocument();
+        $emailDom->loadHTML($messageContent);
+
+        $emailXpath = new \DOMXPath($emailDom);
+        $emailDomNodes = $emailXpath->query($xpath);
+
+        $this->assertSame(1, $emailDomNodes->length);
+        $this->assertContains($expected, $emailDomNodes->item(0)->textContent);
+    }
+
+    /**
+     * Returns raw content of provided message
+     *
+     * @param EmailMessage $message
+     * @return string
+     */
+    private function getMessageRawContent(EmailMessage $message): string
+    {
+        $emailParts = $message->getBody()->getParts();
+        return current($emailParts)->getRawContent();
     }
 }
