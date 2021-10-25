@@ -6,7 +6,7 @@
 
 namespace Magento\Framework\Code\Minifier\Adapter\Js;
 
-use JShrink\Minifier;
+use Garfix\JsMinify\Minifier;
 use Magento\Framework\Code\Minifier\AdapterInterface;
 
 /**
